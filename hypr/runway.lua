@@ -1,4 +1,0 @@
--- Runway — fullscreen checking forecast (Omarchy Quattro)
--- Add this to your Hyprland bindings, or source hypr/runway.conf from hyprland.conf.
---
--- o.bind("SUPER + R", "omarchy-shell shell toggle runway.forecast")

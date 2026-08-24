@@ -2,6 +2,13 @@
 
 All notable changes to Runway are documented here.
 
+## [1.0.4] - 2026-08-24
+
+### Changed
+
+- Project name is just Runway.
+- Install no longer ships or documents a Super + R keybind.
+
 ## [1.0.3] - 2026-08-24
 
 ### Fixed

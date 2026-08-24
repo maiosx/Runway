@@ -51,7 +51,7 @@ BarWidget {
     cursorShape: Qt.PointingHandCursor
     acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     onClicked: root.toggleRunway()
-    onEntered: if (root.bar) root.bar.showTooltip(root, "Runway • Super + R")
+    onEntered: if (root.bar) root.bar.showTooltip(root, "Runway")
     onExited: if (root.bar) root.bar.hideTooltip(root)
   }
 }
