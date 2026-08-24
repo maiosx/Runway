@@ -130,7 +130,7 @@ function buildForecast(data, startDate, endDate, accountId, occ) {
   for (var p = 0; p < points.length; p++) {
     if (points[p].balance < minB) minB = points[p].balance
     if (points[p].balance > maxB) maxB = points[p].balance
-    if (!crosses && points[p].balance <= 0 && points[p].date > startDate) crosses = points[p].date
+    if (!crosses && points[p].balance <= 0 && points[p].date > startDate && startBalance > 0) crosses = points[p].date
   }
 
   var monthlyNet = monthlyNetFor(data.incomes || [], data.expenses || [], data.transfers || [], accountId)
@@ -181,6 +181,19 @@ function frequencyLabel(f) {
   if (f === "quarterly") return "Every 3 months"
   if (f === "yearly") return "Every year"
   return f
+}
+
+function createEmpty() {
+  return {
+    currency: "USD",
+    forecastAccountId: "acc-checking",
+    accounts: [
+      { id: "acc-checking", name: "Checking", kind: "asset", balance: 0 }
+    ],
+    incomes: [],
+    expenses: [],
+    transfers: []
+  }
 }
 
 function createSample(today, friday, first, tomorrow) {

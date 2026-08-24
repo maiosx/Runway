@@ -77,6 +77,13 @@ Item {
     root.forecast = F.buildForecast(root.book, root.today, root.selectedDate, root.book.forecastAccountId, Dates.occurrences)
   }
 
+  function cloneList(list) {
+    var out = []
+    if (!list) return out
+    for (var i = 0; i < list.length; i++) out.push(list[i])
+    return out
+  }
+
   function persist() {
     dataFile.setText(JSON.stringify(root.book, null, 2))
     refreshForecast()
@@ -86,23 +93,26 @@ Item {
   function loadData(raw) {
     try {
       var parsed = JSON.parse(raw)
-      if (parsed && parsed.accounts) {
+      if (parsed && parsed.accounts && parsed.accounts.length) {
         root.book = parsed
         refreshForecast()
         rebuildLists()
         return
       }
     } catch (e) {}
-    seedSample()
+    seedEmpty()
+  }
+
+  function seedEmpty() {
+    root.book = F.createEmpty()
+    persist()
   }
 
   function seedSample() {
     var t = Dates.todayISO()
-    var tomorrow = Dates.addWeeks(t, 0)
     var d = Dates.parseISO(t)
     d.setDate(d.getDate() + 1)
-    tomorrow = Dates.iso(d)
-    root.book = F.createSample(t, Dates.nextWeekdayISO(5), Dates.firstOfNextMonthISO(), tomorrow)
+    root.book = F.createSample(t, Dates.nextWeekdayISO(5), Dates.firstOfNextMonthISO(), Dates.iso(d))
     persist()
   }
 
@@ -177,10 +187,10 @@ Item {
 
   FileView {
     id: dataFile
-    path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/omarchy/runway.json"
+    path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/omarchy/runway-v2.json"
     watchChanges: true
     onLoaded: root.loadData(text())
-    onLoadFailed: root.seedSample()
+    onLoadFailed: root.seedEmpty()
   }
 
   ListModel { id: accountModel }
@@ -360,8 +370,12 @@ Item {
             text: {
               if (root.forecast.crossesZeroOn)
                 return "Goes negative on " + Dates.formatLongDate(root.forecast.crossesZeroOn)
-              if (root.forecast.monthlyNet >= 0)
-                return "Growing " + F.formatMoneySigned(Math.round((root.forecast.monthlyNet || 0) / 100) * 100, root.symbol) + " / month"
+              if ((root.forecast.monthlyNet || 0) === 0)
+                return (root.forecast.startBalance || 0) === 0
+                  ? "Add income on the Plan tab to project this."
+                  : "No monthly net — balance holds"
+              if (root.forecast.monthlyNet > 0)
+                return "Growing " + F.formatMoneySigned(Math.round(root.forecast.monthlyNet / 100) * 100, root.symbol) + " / month"
               var m = root.forecast.runwayMonths
               return isFinite(m) ? m.toFixed(1) + " months of runway" : "Income covers spending"
             }
@@ -377,16 +391,17 @@ Item {
         }
 
         // Plan
-        Column {
+        Item {
           visible: root.tab === "plan" && root.editor === ""
           anchors.top: header.bottom
           anchors.bottom: tabs.top
           anchors.left: parent.left
           anchors.right: parent.right
-          spacing: 8
 
           Row {
+            id: planPills
             width: parent.width
+            y: 8
             leftPadding: 20
             rightPadding: 20
             spacing: 8
@@ -414,9 +429,29 @@ Item {
             }
           }
 
+          Text {
+            visible: planModel.count === 0
+            anchors.top: planPills.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.margins: 24
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            color: root.muted
+            font.pixelSize: 15
+            text: root.planTab === "incomes"
+              ? "No income yet. Tap + to add a paycheck or deposit."
+              : (root.planTab === "expenses"
+                ? "No expenses yet. Tap + to add rent, bills, or spending."
+                : "No transfers yet. Tap + to move money between accounts.")
+          }
+
           ListView {
-            width: parent.width
-            height: parent.height - 52
+            anchors.top: planPills.bottom
+            anchors.topMargin: 8
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
             clip: true
             model: planModel
             boundsBehavior: Flickable.StopAtBounds
@@ -454,16 +489,17 @@ Item {
         }
 
         // Accounts
-        Column {
+        Item {
           visible: root.tab === "accounts" && root.editor === ""
           anchors.top: header.bottom
           anchors.bottom: tabs.top
           anchors.left: parent.left
           anchors.right: parent.right
-          spacing: 8
 
           Row {
+            id: accountPills
             width: parent.width
+            y: 8
             leftPadding: 20
             rightPadding: 20
             spacing: 8
@@ -490,9 +526,27 @@ Item {
             }
           }
 
+          Text {
+            visible: accountModel.count === 0
+            anchors.top: accountPills.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.margins: 24
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            color: root.muted
+            font.pixelSize: 15
+            text: root.accountKind === "asset"
+              ? "No assets yet. Tap + to add checking or savings."
+              : "No liabilities yet. Tap + to add a card or loan."
+          }
+
           ListView {
-            width: parent.width
-            height: parent.height - 52
+            anchors.top: accountPills.bottom
+            anchors.topMargin: 8
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
             clip: true
             model: accountModel
             boundsBehavior: Flickable.StopAtBounds
@@ -593,19 +647,33 @@ Item {
                 anchors.fill: parent
                 onClicked: {
                   var cents = Math.round(parseFloat(amountField.text.replace(/[^0-9.]/g, "") || "0") * 100)
-                  var name = nameField.text.trim() || "Untitled"
-                  var accs = (root.book.accounts || [])
-                  var firstAcc = accs.length ? accs[0].id : "acc-checking"
+                  if (!isFinite(cents) || cents < 0) cents = 0
+                  var name = nameField.text.trim()
                   var next = Object.assign({}, root.book)
                   if (root.editor === "account") {
-                    next.accounts = accs.concat([{ id: F.uid(), name: name, kind: root.accountKind, balance: cents }])
+                    if (!name) name = root.accountKind === "liability" ? "Card" : "Checking"
+                    var accs = root.cloneList(root.book.accounts)
+                    accs.push({ id: F.uid(), name: name, kind: root.accountKind, balance: cents })
+                    next.accounts = accs
                   } else if (root.editor === "income") {
-                    next.incomes = (root.book.incomes || []).concat([{ id: F.uid(), name: name, amount: cents, frequency: "monthly", nextDate: Dates.firstOfNextMonthISO(), accountId: firstAcc, enabled: true }])
+                    if (!name) name = "Income"
+                    var incomes = root.cloneList(root.book.incomes)
+                    var firstAcc = (root.book.accounts && root.book.accounts.length) ? root.book.accounts[0].id : "acc-checking"
+                    incomes.push({ id: F.uid(), name: name, amount: cents, frequency: "monthly", nextDate: Dates.firstOfNextMonthISO(), accountId: firstAcc, enabled: true })
+                    next.incomes = incomes
                   } else if (root.editor === "expense") {
-                    next.expenses = (root.book.expenses || []).concat([{ id: F.uid(), name: name, amount: cents, frequency: "monthly", nextDate: Dates.firstOfNextMonthISO(), accountId: firstAcc, enabled: true }])
+                    if (!name) name = "Expense"
+                    var expenses = root.cloneList(root.book.expenses)
+                    var expAcc = (root.book.accounts && root.book.accounts.length) ? root.book.accounts[0].id : "acc-checking"
+                    expenses.push({ id: F.uid(), name: name, amount: cents, frequency: "monthly", nextDate: Dates.firstOfNextMonthISO(), accountId: expAcc, enabled: true })
+                    next.expenses = expenses
                   } else if (root.editor === "transfer") {
-                    var second = accs.length > 1 ? accs[1].id : firstAcc
-                    next.transfers = (root.book.transfers || []).concat([{ id: F.uid(), name: name, amount: cents, frequency: "monthly", nextDate: Dates.firstOfNextMonthISO(), fromAccountId: firstAcc, toAccountId: second, enabled: true }])
+                    if (!name) name = "Transfer"
+                    var transfers = root.cloneList(root.book.transfers)
+                    var fromId = (root.book.accounts && root.book.accounts.length) ? root.book.accounts[0].id : "acc-checking"
+                    var toId = (root.book.accounts && root.book.accounts.length > 1) ? root.book.accounts[1].id : fromId
+                    transfers.push({ id: F.uid(), name: name, amount: cents, frequency: "monthly", nextDate: Dates.firstOfNextMonthISO(), fromAccountId: fromId, toAccountId: toId, enabled: true })
+                    next.transfers = transfers
                   }
                   root.book = next
                   root.editor = ""
@@ -635,21 +703,18 @@ Item {
             spacing: 64
             Repeater {
               model: [
-                { id: "accounts", src: "assets/icon-accounts.svg" },
-                { id: "plan", src: "assets/icon-plan.svg" },
-                { id: "forecast", src: "assets/icon-forecast.svg" }
+                { id: "accounts", kind: "accounts" },
+                { id: "plan", kind: "plan" },
+                { id: "forecast", kind: "forecast" }
               ]
               Item {
                 required property var modelData
                 width: 28
                 height: 28
-                opacity: root.tab === modelData.id ? 1 : 0.38
-                Image {
+                TabGlyph {
                   anchors.fill: parent
-                  source: Qt.resolvedUrl(parent.modelData.src)
-                  sourceSize: Qt.size(56, 56)
-                  fillMode: Image.PreserveAspectFit
-                  smooth: true
+                  kind: parent.modelData.kind
+                  ink: root.tab === parent.modelData.id ? root.fg : root.subtle
                 }
                 MouseArea {
                   anchors.fill: parent

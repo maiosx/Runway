@@ -2,6 +2,15 @@
 
 All notable changes to Runway are documented here.
 
+## [1.0.1] - 2026-08-24
+
+### Fixed
+
+- First launch now starts at $0 Checking with an empty plan — no sample paycheck or Rose income.
+- Added accounts now appear on the Assets / Liabilities list (list layout no longer collapses).
+- Tab icons draw in QML so they show even if SVG assets fail to load.
+- Save clones account arrays instead of relying on QVariantList.concat.
+
 ## [1.0.0] - 2026-08-24
 
 ### Added
@@ -11,9 +20,4 @@ All notable changes to Runway are documented here.
 - Accounts (assets / liabilities), Plan (incomes / transfers / expenses), and Forecast step chart.
 - Bar widget with staircase icon; left-click opens, right-click explains the hotkey.
 - IPC: `omarchy-shell runway toggle|open|close|status` and `omarchy-shell shell toggle runway.forecast`.
-- Sample household seeded on first launch; data at `~/.config/omarchy/runway.json`.
-
-### Notes
-
-- Follows the Fluid Clouds plugin layout (manifest, service-style QML, bar widget, assets, hypr bind, install script).
-- Overlay surface matches first-party Omarchy overlays (emoji, clipboard): `WlrLayer.Overlay`, exclusive keyboard, Escape to dismiss.
+- Data at `~/.config/omarchy/runway-v2.json`.
