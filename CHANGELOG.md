@@ -2,6 +2,12 @@
 
 All notable changes to Runway are documented here.
 
+## [1.0.9] - 2026-08-24
+
+### Fixed
+
+- Bar icon uses the same MouseArea hover pattern as Fluid Clouds: pointing-hand cursor and tooltip "Runway - Money Forecast".
+
 ## [1.0.8] - 2026-08-24
 
 ### Changed

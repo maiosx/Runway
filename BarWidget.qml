@@ -20,16 +20,6 @@ BarWidget {
       root.bar.shell.toggle("runway.forecast", "{}")
   }
 
-  HoverHandler {
-    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-    cursorShape: Qt.PointingHandCursor
-    onHoveredChanged: {
-      if (!root.bar) return
-      if (hovered) root.bar.showTooltip(root, "Runway - Money Forecast")
-      else root.bar.hideTooltip(root)
-    }
-  }
-
   Item {
     anchors.centerIn: parent
     width: Math.min(root.width - Style.space(8), Style.space(22))
@@ -54,18 +44,13 @@ BarWidget {
     }
   }
 
-  // keepSpace keeps the hit target visible: WidgetButton hides itself when
-  // text is empty (hasVisualContent is false).
-  WidgetButton {
+  MouseArea {
     anchors.fill: parent
-    bar: root.bar
-    text: ""
-    keepSpace: true
-    labelVisible: false
-    tooltipText: "Runway - Money Forecast"
-    z: 10
-    onPressed: function (button) {
-      root.toggleRunway()
-    }
+    hoverEnabled: true
+    cursorShape: Qt.PointingHandCursor
+    acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+    onClicked: root.toggleRunway()
+    onEntered: if (root.bar) root.bar.showTooltip(root, "Runway - Money Forecast")
+    onExited: if (root.bar) root.bar.hideTooltip(root)
   }
 }
