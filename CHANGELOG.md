@@ -2,6 +2,12 @@
 
 All notable changes to Runway are documented here.
 
+## [1.1.0] - 2026-08-24
+
+### Changed
+
+- Bar icon is a `$` instead of the staircase glyph. Hover still shows the pointing-hand cursor and "Runway - Money Forecast".
+
 ## [1.0.9] - 2026-08-24
 
 ### Fixed
