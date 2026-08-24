@@ -2,6 +2,13 @@
 
 All notable changes to Runway are documented here.
 
+## [1.0.3] - 2026-08-24
+
+### Fixed
+
+- Bar icon click now summons the overlay the same way the Omarchy menu does (`bar.run("omarchy-shell shell toggle runway.forecast")`) instead of looking up a service that does not exist.
+- Dropped `palette.*` and `placeholderTextColor` on the overlay window so a QML load error cannot swallow the toggle.
+
 ## [1.0.2] - 2026-08-24
 
 ### Fixed

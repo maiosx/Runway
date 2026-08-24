@@ -206,12 +206,6 @@ Item {
     visible: root.opened
     anchors { top: true; bottom: true; left: true; right: true }
     color: "#000000"
-    palette.windowText: "#f5f5f7"
-    palette.text: "#f5f5f7"
-    palette.placeholderText: "#8e8e93"
-    palette.buttonText: "#f5f5f7"
-    palette.base: "#1c1c1e"
-    palette.window: "#000000"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "runway-forecast"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -673,7 +667,6 @@ Item {
               width: parent.width
               placeholderText: "Name"
               color: "#f5f5f7"
-              placeholderTextColor: "#8e8e93"
               background: Rectangle { color: "#2c2c2e"; radius: 12 }
               leftPadding: 14
               height: 48
@@ -684,7 +677,6 @@ Item {
               placeholderText: "Amount"
               inputMethodHints: Qt.ImhFormattedNumbersOnly
               color: "#f5f5f7"
-              placeholderTextColor: "#8e8e93"
               background: Rectangle { color: "#2c2c2e"; radius: 12 }
               leftPadding: 14
               height: 48
