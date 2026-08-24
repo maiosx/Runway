@@ -2,6 +2,13 @@
 
 All notable changes to Runway are documented here.
 
+## [1.0.2] - 2026-08-24
+
+### Fixed
+
+- List row text was defaulting to black on black (Bound delegates could not see `root.fg`). Account names, balances, incomes, and expenses now use explicit white `#f5f5f7`.
+- Renamed the plan `enabled` model role to `isOn` so it no longer clashes with `Item.enabled`.
+
 ## [1.0.1] - 2026-08-24
 
 ### Fixed

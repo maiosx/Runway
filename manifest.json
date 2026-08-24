@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "runway.forecast",
   "name": "Runway",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "maiosx",
   "license": "MIT",
   "description": "Fullscreen checking-account forecast for Omarchy. Super + R summons it over the desktop.",

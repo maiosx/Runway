@@ -132,7 +132,7 @@ Item {
     var acc = root.book.accounts || []
     for (var i = 0; i < acc.length; i++) {
       if (acc[i].kind === root.accountKind)
-        accountModel.append({ uid: acc[i].id, name: acc[i].name, balance: acc[i].balance })
+        accountModel.append({ uid: acc[i].id, title: acc[i].name, balance: acc[i].balance })
     }
     planModel.clear()
     var rows = []
@@ -146,11 +146,11 @@ Item {
         : accountName(it.accountId)
       planModel.append({
         uid: it.id,
-        name: it.name,
+        title: it.name,
         subtitle: sub,
         amount: it.amount,
         cadence: F.frequencyLabel(it.frequency),
-        enabled: it.enabled
+        isOn: !!it.enabled
       })
     }
   }
@@ -205,7 +205,13 @@ Item {
     id: panel
     visible: root.opened
     anchors { top: true; bottom: true; left: true; right: true }
-    color: root.bg
+    color: "#000000"
+    palette.windowText: "#f5f5f7"
+    palette.text: "#f5f5f7"
+    palette.placeholderText: "#8e8e93"
+    palette.buttonText: "#f5f5f7"
+    palette.base: "#1c1c1e"
+    palette.window: "#000000"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "runway-forecast"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -447,6 +453,7 @@ Item {
           }
 
           ListView {
+            id: planList
             anchors.top: planPills.bottom
             anchors.topMargin: 8
             anchors.bottom: parent.bottom
@@ -456,7 +463,14 @@ Item {
             model: planModel
             boundsBehavior: Flickable.StopAtBounds
             delegate: Item {
-              width: ListView.view.width
+              id: planRow
+              required property string uid
+              required property string title
+              required property string subtitle
+              required property real amount
+              required property string cadence
+              required property bool isOn
+              width: planList.width
               height: 64
               Row {
                 anchors.fill: parent
@@ -465,23 +479,56 @@ Item {
                 spacing: 12
                 Rectangle {
                   width: 28; height: 28; radius: 14
-                  color: enabled ? root.surface2 : "transparent"
-                  border.color: root.subtle
+                  color: planRow.isOn ? "#2c2c2e" : "transparent"
+                  border.width: 1
+                  border.color: "#8e8e93"
                   anchors.verticalCenter: parent.verticalCenter
-                  Text { anchors.centerIn: parent; text: enabled ? "✓" : ""; color: root.fg; font.pixelSize: 12 }
-                  MouseArea { anchors.fill: parent; onClicked: root.togglePlanItem(uid) }
+                  Text {
+                    anchors.centerIn: parent
+                    text: planRow.isOn ? "✓" : ""
+                    color: "#f5f5f7"
+                    font.pixelSize: 12
+                  }
+                  MouseArea {
+                    anchors.fill: parent
+                    onClicked: root.togglePlanItem(planRow.uid)
+                  }
                 }
                 Column {
                   width: parent.width - 160
                   anchors.verticalCenter: parent.verticalCenter
-                  Text { text: name; color: enabled ? root.fg : root.muted; font.pixelSize: 17; elide: Text.ElideRight; width: parent.width }
-                  Text { text: subtitle; color: root.muted; font.pixelSize: 13; elide: Text.ElideRight; width: parent.width }
+                  Text {
+                    width: parent.width
+                    text: planRow.title
+                    color: planRow.isOn ? "#f5f5f7" : "#8e8e93"
+                    font.pixelSize: 17
+                    elide: Text.ElideRight
+                  }
+                  Text {
+                    width: parent.width
+                    text: planRow.subtitle
+                    color: "#8e8e93"
+                    font.pixelSize: 13
+                    elide: Text.ElideRight
+                  }
                 }
                 Column {
                   width: 90
                   anchors.verticalCenter: parent.verticalCenter
-                  Text { width: parent.width; horizontalAlignment: Text.AlignRight; text: F.formatMoney(amount, root.symbol); color: enabled ? root.fg : root.muted; font.pixelSize: 17 }
-                  Text { width: parent.width; horizontalAlignment: Text.AlignRight; text: cadence; color: root.muted; font.pixelSize: 13 }
+                  Text {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignRight
+                    text: F.formatMoney(planRow.amount, "$")
+                    color: planRow.isOn ? "#f5f5f7" : "#8e8e93"
+                    font.pixelSize: 17
+                  }
+                  Text {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignRight
+                    text: planRow.cadence
+                    color: "#8e8e93"
+                    font.pixelSize: 13
+                  }
                 }
               }
             }
@@ -542,6 +589,7 @@ Item {
           }
 
           ListView {
+            id: accountList
             anchors.top: accountPills.bottom
             anchors.topMargin: 8
             anchors.bottom: parent.bottom
@@ -551,27 +599,29 @@ Item {
             model: accountModel
             boundsBehavior: Flickable.StopAtBounds
             delegate: Item {
-              width: ListView.view.width
+              id: accRow
+              required property string uid
+              required property string title
+              required property real balance
+              width: accountList.width
               height: 56
-              Row {
-                anchors.fill: parent
+              Text {
+                anchors.left: parent.left
                 anchors.leftMargin: 20
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - 140
+                text: accRow.title
+                color: "#f5f5f7"
+                font.pixelSize: 17
+                elide: Text.ElideRight
+              }
+              Text {
+                anchors.right: parent.right
                 anchors.rightMargin: 20
-                Text {
-                  width: parent.width - 120
-                  anchors.verticalCenter: parent.verticalCenter
-                  text: name
-                  color: root.fg
-                  font.pixelSize: 17
-                }
-                Text {
-                  width: 120
-                  anchors.verticalCenter: parent.verticalCenter
-                  horizontalAlignment: Text.AlignRight
-                  text: F.formatMoney(balance, root.symbol)
-                  color: root.fg
-                  font.pixelSize: 17
-                }
+                anchors.verticalCenter: parent.verticalCenter
+                text: F.formatMoney(accRow.balance, "$")
+                color: "#f5f5f7"
+                font.pixelSize: 17
               }
             }
           }
@@ -622,8 +672,9 @@ Item {
               id: nameField
               width: parent.width
               placeholderText: "Name"
-              color: root.fg
-              background: Rectangle { color: root.surface2; radius: 12 }
+              color: "#f5f5f7"
+              placeholderTextColor: "#8e8e93"
+              background: Rectangle { color: "#2c2c2e"; radius: 12 }
               leftPadding: 14
               height: 48
             }
@@ -632,8 +683,9 @@ Item {
               width: parent.width
               placeholderText: "Amount"
               inputMethodHints: Qt.ImhFormattedNumbersOnly
-              color: root.fg
-              background: Rectangle { color: root.surface2; radius: 12 }
+              color: "#f5f5f7"
+              placeholderTextColor: "#8e8e93"
+              background: Rectangle { color: "#2c2c2e"; radius: 12 }
               leftPadding: 14
               height: 48
             }
