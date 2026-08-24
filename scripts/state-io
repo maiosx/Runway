@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""Bounded regular-file / no-follow I/O for Runway state."""
+from __future__ import annotations
+
+import errno
+import os
+import stat
+import sys
+
+MAX_BYTES = 65536
+O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
+
+
+def _die(code: int) -> None:
+    sys.exit(code)
+
+
+def _is_reg(st: os.stat_result) -> bool:
+    return stat.S_ISREG(st.st_mode)
+
+
+def cmd_get(path: str) -> None:
+    flags = os.O_RDONLY | O_NOFOLLOW
+    try:
+        fd = os.open(path, flags)
+    except FileNotFoundError:
+        _die(2)
+    except OSError as exc:
+        if exc.errno in (errno.ELOOP, errno.EMLINK, errno.EPERM):
+            _die(3)
+        if exc.errno == errno.ENOENT:
+            _die(2)
+        _die(1)
+    try:
+        st = os.fstat(fd)
+        if not _is_reg(st):
+            _die(3)
+        if st.st_size > MAX_BYTES:
+            _die(3)
+        data = os.read(fd, MAX_BYTES + 1)
+        if len(data) > MAX_BYTES:
+            _die(3)
+        sys.stdout.buffer.write(data)
+    finally:
+        os.close(fd)
+
+
+def cmd_put(path: str) -> None:
+    import signal
+
+    def _timeout(_signum, _frame):
+        _die(1)
+
+    signal.signal(signal.SIGALRM, _timeout)
+    signal.alarm(3)
+    data = sys.stdin.buffer.read(MAX_BYTES + 1)
+    signal.alarm(0)
+    if len(data) > MAX_BYTES:
+        _die(4)
+    directory = os.path.dirname(path) or "."
+    try:
+        os.makedirs(directory, mode=0o700, exist_ok=True)
+    except OSError:
+        _die(1)
+    tmp = path + ".tmp"
+    try:
+        os.unlink(tmp)
+    except FileNotFoundError:
+        pass
+    except OSError:
+        _die(1)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | O_NOFOLLOW
+    try:
+        fd = os.open(tmp, flags, 0o600)
+    except OSError:
+        _die(1)
+    try:
+        st = os.fstat(fd)
+        if not _is_reg(st):
+            _die(1)
+        written = 0
+        while written < len(data):
+            n = os.write(fd, data[written:])
+            if n <= 0:
+                _die(1)
+            written += n
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    try:
+        os.replace(tmp, path)
+    except OSError:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        _die(1)
+
+
+def main() -> None:
+    if len(sys.argv) != 3 or sys.argv[1] not in ("get", "put"):
+        _die(1)
+    op, path = sys.argv[1], sys.argv[2]
+    if not path or path.endswith("/"):
+        _die(1)
+    if op == "get":
+        cmd_get(path)
+    else:
+        cmd_put(path)
+
+
+if __name__ == "__main__":
+    main()

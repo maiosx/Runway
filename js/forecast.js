@@ -31,37 +31,39 @@ function netOf(balances, accountId, accounts) {
   return sum
 }
 
-function collectEvents(incomes, expenses, transfers, startDate, endDate, occ) {
+function collectEvents(incomes, expenses, transfers, startDate, endDate, occ, maxEvents, maxOcc) {
   var events = []
+  var cap = typeof maxEvents === "number" && isFinite(maxEvents) ? Math.min(Math.max(0, Math.floor(maxEvents)), 4096) : 2048
+  var per = typeof maxOcc === "number" && isFinite(maxOcc) ? maxOcc : 200
   var i, dates, d
-  for (i = 0; i < incomes.length; i++) {
-    var inc = incomes[i]
-    if (!inc.enabled || inc.amount <= 0) continue
-    dates = occ(inc.nextDate, inc.frequency, startDate, endDate)
-    for (d = 0; d < dates.length; d++) {
-      events.push({ date: dates[d], kind: "income", name: inc.name, accountId: inc.accountId, amount: inc.amount, fromId: "", toId: "" })
+  function pushAll(kind, list, accountKey, fromKey, toKey) {
+    if (events.length >= cap) return
+    for (i = 0; i < list.length; i++) {
+      if (events.length >= cap) return
+      var item = list[i]
+      if (!item || !item.enabled || item.amount <= 0) continue
+      dates = occ(item.nextDate, item.frequency, startDate, endDate, per)
+      for (d = 0; d < dates.length; d++) {
+        if (events.length >= cap) return
+        events.push({
+          date: dates[d],
+          kind: kind,
+          name: item.name,
+          accountId: accountKey ? item[accountKey] : "",
+          amount: item.amount,
+          fromId: fromKey ? item[fromKey] : "",
+          toId: toKey ? item[toKey] : ""
+        })
+      }
     }
   }
-  for (i = 0; i < expenses.length; i++) {
-    var exp = expenses[i]
-    if (!exp.enabled || exp.amount <= 0) continue
-    dates = occ(exp.nextDate, exp.frequency, startDate, endDate)
-    for (d = 0; d < dates.length; d++) {
-      events.push({ date: dates[d], kind: "expense", name: exp.name, accountId: exp.accountId, amount: exp.amount, fromId: "", toId: "" })
-    }
-  }
-  for (i = 0; i < transfers.length; i++) {
-    var tr = transfers[i]
-    if (!tr.enabled || tr.amount <= 0) continue
-    dates = occ(tr.nextDate, tr.frequency, startDate, endDate)
-    for (d = 0; d < dates.length; d++) {
-      events.push({ date: dates[d], kind: "transfer", name: tr.name, accountId: "", amount: tr.amount, fromId: tr.fromAccountId, toId: tr.toAccountId })
-    }
-  }
+  pushAll("income", incomes, "accountId", "", "")
+  pushAll("expense", expenses, "accountId", "", "")
+  pushAll("transfer", transfers, "", "fromAccountId", "toAccountId")
   events.sort(function (a, b) {
     if (a.date !== b.date) return a.date < b.date ? -1 : 1
     var order = { income: 0, transfer: 1, expense: 2 }
-    return order[a.kind] - order[b.kind]
+    return (order[a.kind] || 0) - (order[b.kind] || 0)
   })
   return events
 }
@@ -101,15 +103,21 @@ function monthlyNetFor(incomes, expenses, transfers, accountId) {
 }
 
 function buildForecast(data, startDate, endDate, accountId, occ) {
+  if (!data) data = ({ accounts: [], incomes: [], expenses: [], transfers: [] })
   if (endDate < startDate) endDate = startDate
   var accounts = data.accounts || []
+  if (accounts.length > 64) accounts = accounts.slice(0, 64)
+  var incomes = (data.incomes || []).slice(0, 128)
+  var expenses = (data.expenses || []).slice(0, 128)
+  var transfers = (data.transfers || []).slice(0, 64)
   var balances = cloneBalances(accounts)
   var startBalance = netOf(balances, accountId, accounts)
-  var events = collectEvents(data.incomes || [], data.expenses || [], data.transfers || [], startDate, endDate, occ)
+  var events = collectEvents(incomes, expenses, transfers, startDate, endDate, occ, 2048, 200)
 
+  var maxPoints = 512
   var points = [{ date: startDate, balance: startBalance, delta: 0 }]
   var i = 0
-  while (i < events.length) {
+  while (i < events.length && points.length < maxPoints) {
     var day = events[i].date
     var before = netOf(balances, accountId, accounts)
     while (i < events.length && events[i].date === day) {
@@ -120,7 +128,7 @@ function buildForecast(data, startDate, endDate, accountId, occ) {
     points.push({ date: day, balance: after, delta: after - before })
   }
   var last = points[points.length - 1]
-  if (last && last.date < endDate) {
+  if (last && last.date < endDate && points.length < maxPoints) {
     points.push({ date: endDate, balance: last.balance, delta: 0 })
   }
 
@@ -180,7 +188,7 @@ function frequencyLabel(f) {
   if (f === "monthly") return "Every month"
   if (f === "quarterly") return "Every 3 months"
   if (f === "yearly") return "Every year"
-  return f
+  return "Every month"
 }
 
 function createEmpty() {

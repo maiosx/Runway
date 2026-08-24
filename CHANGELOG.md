@@ -2,6 +2,16 @@
 
 All notable changes to Runway are documented here.
 
+## [1.1.1] - 2026-08-24
+
+### Security
+
+- State is read and written through `scripts/state-io`: regular file only, `O_NOFOLLOW`, 64 KiB ceiling.
+- Loaded JSON is schema-validated (IDs, dates, frequencies, finite cents, name/id lengths, collection caps) before `root.book` is assigned.
+- Forecast generation is capped (200 occurrences per item, 2048 events, 512 points, 36-month horizon).
+- Writes are serialized and refused above the byte ceiling.
+- State-derived `Text` values use `Text.PlainText`.
+
 ## [1.1.0] - 2026-08-24
 
 ### Changed

@@ -22,7 +22,7 @@ omarchy-shell shell rescanPlugins
 omarchy plugin enable runway.forecast
 ```
 
-The plugin targets Omarchy Quattro and uses only Qt Quick and Quickshell components already present in Omarchy. It does not install packages, modify Hyprland configuration, or run background executables.
+The plugin targets Omarchy Quattro and uses only Qt Quick and Quickshell components already present in Omarchy, plus a small Python helper (`scripts/state-io`) that reads and writes `runway-v3.json` as a regular file with `O_NOFOLLOW` and a 64 KiB cap. It does not install packages, modify Hyprland configuration, or run background executables.
 
 ## Notes
 

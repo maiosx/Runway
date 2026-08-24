@@ -9,6 +9,7 @@ import qs.Commons
 import qs.Ui
 import "js/dates.js" as Dates
 import "js/forecast.js" as F
+import "js/state.js" as S
 import "ui"
 
 Item {
@@ -50,10 +51,31 @@ Item {
   readonly property color pillFg: "#111111"
   readonly property string symbol: root.book.currency === "EUR" ? "€" : (root.book.currency === "GBP" ? "£" : "$")
 
+  property string pendingWrite: ""
+
+  function helperPath() {
+    var s = String(Qt.resolvedUrl("scripts/state-io"))
+    if (s.indexOf("file://") === 0) s = s.substring(7)
+    else if (s.indexOf("file:") === 0) s = s.substring(5)
+    try { s = decodeURIComponent(s) } catch (e) {}
+    return s
+  }
+
+  function stateFilePath() {
+    var home = Quickshell.env("XDG_CONFIG_HOME") || ((Quickshell.env("HOME") || "") + "/.config")
+    return home + "/omarchy/runway-v3.json"
+  }
+
+  function clampSelected() {
+    var today = Dates.todayISO()
+    var max = Dates.addMonths(today, S.MAX_HORIZON_MONTHS)
+    if (!root.selectedDate || root.selectedDate < today) root.selectedDate = Dates.addMonths(today, 12)
+    if (root.selectedDate > max) root.selectedDate = max
+  }
+
   function open(payloadJson) {
     root.today = Dates.todayISO()
-    if (!root.selectedDate || root.selectedDate < root.today)
-      root.selectedDate = Dates.addMonths(root.today, 12)
+    root.clampSelected()
     root.opened = true
     root.refreshForecast()
     Qt.callLater(function () { keyCatcher.forceActiveFocus() })
@@ -74,37 +96,51 @@ Item {
   }
 
   function refreshForecast() {
+    root.clampSelected()
     root.forecast = F.buildForecast(root.book, root.today, root.selectedDate, root.book.forecastAccountId, Dates.occurrences)
   }
 
   function cloneList(list) {
     var out = []
     if (!list) return out
-    for (var i = 0; i < list.length; i++) out.push(list[i])
+    var n = list.length
+    for (var i = 0; i < n; i++) out.push(list[i])
     return out
   }
 
   function persist() {
-    dataFile.setText(JSON.stringify(root.book, null, 2))
+    refreshForecast()
+    rebuildLists()
+    var payload = S.serializeBook(root.book)
+    if (!payload) return
+    if (writer.running) {
+      root.pendingWrite = payload
+      return
+    }
+    startWrite(payload)
+  }
+
+  function startWrite(payload) {
+    writer.payload = payload
+    writer.stdinEnabled = true
+    writer.running = true
+  }
+
+  function loadData(raw) {
+    var book = S.parseBook(raw)
+    if (!book) {
+      root.book = S.emptyBook()
+      refreshForecast()
+      rebuildLists()
+      return
+    }
+    root.book = book
     refreshForecast()
     rebuildLists()
   }
 
-  function loadData(raw) {
-    try {
-      var parsed = JSON.parse(raw)
-      if (parsed && parsed.accounts !== undefined) {
-        root.book = parsed
-        refreshForecast()
-        rebuildLists()
-        return
-      }
-    } catch (e) {}
-    seedEmpty()
-  }
-
   function seedEmpty() {
-    root.book = F.createEmpty()
+    root.book = S.emptyBook()
     persist()
   }
 
@@ -130,7 +166,8 @@ Item {
   function rebuildLists() {
     accountModel.clear()
     var acc = root.book.accounts || []
-    for (var i = 0; i < acc.length; i++) {
+    var accCap = Math.min(acc.length, S.MAX_ACCOUNTS)
+    for (var i = 0; i < accCap; i++) {
       if (acc[i].kind === root.accountKind)
         accountModel.append({ uid: acc[i].id, title: acc[i].name, balance: acc[i].balance })
     }
@@ -139,7 +176,8 @@ Item {
     if (root.planTab === "incomes") rows = root.book.incomes || []
     else if (root.planTab === "expenses") rows = root.book.expenses || []
     else rows = root.book.transfers || []
-    for (var j = 0; j < rows.length; j++) {
+    var rowCap = Math.min(rows.length, S.MAX_INCOMES)
+    for (var j = 0; j < rowCap; j++) {
       var it = rows[j]
       var sub = root.planTab === "transfers"
         ? accountName(it.fromAccountId) + " → " + accountName(it.toAccountId)
@@ -157,7 +195,7 @@ Item {
 
   function togglePlanItem(uid) {
     var key = root.planTab
-    var list = root.book[key].slice()
+    var list = root.cloneList(root.book[key])
     for (var i = 0; i < list.length; i++) {
       if (list[i].id === uid) {
         list[i] = Object.assign({}, list[i], { enabled: !list[i].enabled })
@@ -165,7 +203,8 @@ Item {
     }
     var next = Object.assign({}, root.book)
     next[key] = list
-    root.book = next
+    var clean = S.parseBook(JSON.stringify(next))
+    root.book = clean || root.book
     persist()
   }
 
@@ -185,12 +224,46 @@ Item {
     function status(): string { return root.opened ? "open" : "closed" }
   }
 
-  FileView {
-    id: dataFile
-    path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/omarchy/runway-v3.json"
-    watchChanges: true
-    onLoaded: root.loadData(text())
-    onLoadFailed: root.seedEmpty()
+  Process {
+    id: reader
+    command: [root.helperPath(), "get", root.stateFilePath()]
+    running: true
+    stdout: StdioCollector { id: readerOut }
+    onRunningChanged: {
+      if (running) return
+      var code = exitCode
+      if (code === 0) root.loadData(readerOut.text)
+      else if (code === 2) root.seedEmpty()
+      else {
+        root.book = S.emptyBook()
+        root.refreshForecast()
+        root.rebuildLists()
+      }
+    }
+  }
+
+  Process {
+    id: writer
+    property string payload: ""
+    command: [root.helperPath(), "put", root.stateFilePath()]
+    stdinEnabled: true
+    stdout: StdioCollector {}
+    onRunningChanged: {
+      if (running) {
+        Qt.callLater(function () {
+          if (!writer.running) return
+          writer.write(writer.payload)
+          if (typeof writer.closeStdin === "function") writer.closeStdin()
+          else writer.stdinEnabled = false
+        })
+        return
+      }
+      if (root.pendingWrite) {
+        var next = root.pendingWrite
+        root.pendingWrite = ""
+        root.startWrite(next)
+      }
+    }
   }
 
   ListModel { id: accountModel }
@@ -250,6 +323,7 @@ Item {
               color: "#f5f5f7"
               font.pixelSize: 34
               font.bold: true
+              textFormat: Text.PlainText
               anchors.left: parent.left
               anchors.verticalCenter: parent.verticalCenter
             }
@@ -304,6 +378,7 @@ Item {
                 color: root.fg
                 font.pixelSize: 15
                 font.weight: Font.Medium
+                textFormat: Text.PlainText
               }
               MouseArea {
                 anchors.fill: parent
@@ -337,6 +412,7 @@ Item {
             color: root.fg
             font.pixelSize: 42
             font.weight: Font.Normal
+            textFormat: Text.PlainText
             MouseArea {
               anchors.fill: parent
               onClicked: root.mode = root.mode === "balance" ? "runway" : "balance"
@@ -349,6 +425,7 @@ Item {
             text: filterLabel() + "  ▾"
             color: root.muted
             font.pixelSize: 15
+            textFormat: Text.PlainText
             MouseArea {
               anchors.fill: parent
               onClicked: {
@@ -376,6 +453,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             color: root.forecast.crossesZeroOn ? root.danger : (root.forecast.monthlyNet >= 0 ? root.accent : root.zero)
             font.pixelSize: 13
+            textFormat: Text.PlainText
             text: {
               if (root.forecast.crossesZeroOn)
                 return "Goes negative on " + Dates.formatLongDate(root.forecast.crossesZeroOn)
@@ -506,6 +584,7 @@ Item {
                     color: planRow.isOn ? "#f5f5f7" : "#8e8e93"
                     font.pixelSize: 17
                     elide: Text.ElideRight
+                    textFormat: Text.PlainText
                   }
                   Text {
                     width: parent.width
@@ -513,6 +592,7 @@ Item {
                     color: "#8e8e93"
                     font.pixelSize: 13
                     elide: Text.ElideRight
+                    textFormat: Text.PlainText
                   }
                 }
                 Column {
@@ -524,6 +604,7 @@ Item {
                     text: F.formatMoney(planRow.amount, "$")
                     color: planRow.isOn ? "#f5f5f7" : "#8e8e93"
                     font.pixelSize: 17
+                    textFormat: Text.PlainText
                   }
                   Text {
                     width: parent.width
@@ -531,6 +612,7 @@ Item {
                     text: planRow.cadence
                     color: "#8e8e93"
                     font.pixelSize: 13
+                    textFormat: Text.PlainText
                   }
                 }
               }
@@ -617,6 +699,7 @@ Item {
                 color: "#f5f5f7"
                 font.pixelSize: 17
                 elide: Text.ElideRight
+                textFormat: Text.PlainText
               }
               Text {
                 anchors.right: parent.right
@@ -625,6 +708,7 @@ Item {
                 text: F.formatMoney(accRow.balance, "$")
                 color: "#f5f5f7"
                 font.pixelSize: 17
+                textFormat: Text.PlainText
               }
             }
           }
@@ -676,6 +760,7 @@ Item {
               width: parent.width
               placeholderText: "Name"
               color: "#f5f5f7"
+              maximumLength: 80
               background: Rectangle { color: "#2c2c2e"; radius: 12 }
               leftPadding: 14
               height: 48
@@ -686,6 +771,7 @@ Item {
               placeholderText: "Amount"
               inputMethodHints: Qt.ImhFormattedNumbersOnly
               color: "#f5f5f7"
+              maximumLength: 16
               background: Rectangle { color: "#2c2c2e"; radius: 12 }
               leftPadding: 14
               height: 48
@@ -701,34 +787,41 @@ Item {
                 onClicked: {
                   var cents = Math.round(parseFloat(amountField.text.replace(/[^0-9.]/g, "") || "0") * 100)
                   if (!isFinite(cents) || cents < 0) cents = 0
+                  if (cents > S.MAX_CENTS) cents = S.MAX_CENTS
                   var name = nameField.text.trim()
+                  if (name.length > S.MAX_NAME) name = name.substring(0, S.MAX_NAME)
                   var next = Object.assign({}, root.book)
                   if (root.editor === "account") {
+                    if (S.atCap(root.book.accounts, S.MAX_ACCOUNTS)) { root.editor = ""; return }
                     if (!name) name = root.accountKind === "liability" ? "Card" : "Checking"
                     var accs = root.cloneList(root.book.accounts)
                     accs.push({ id: F.uid(), name: name, kind: root.accountKind, balance: cents })
                     next.accounts = accs
                   } else if (root.editor === "income") {
+                    if (S.atCap(root.book.incomes, S.MAX_INCOMES)) { root.editor = ""; return }
                     if (!name) name = "Income"
                     var incomes = root.cloneList(root.book.incomes)
-                    var firstAcc = (root.book.accounts && root.book.accounts.length) ? root.book.accounts[0].id : "acc-checking"
+                    var firstAcc = (root.book.accounts && root.book.accounts.length) ? root.book.accounts[0].id : ""
                     incomes.push({ id: F.uid(), name: name, amount: cents, frequency: "monthly", nextDate: Dates.firstOfNextMonthISO(), accountId: firstAcc, enabled: true })
                     next.incomes = incomes
                   } else if (root.editor === "expense") {
+                    if (S.atCap(root.book.expenses, S.MAX_EXPENSES)) { root.editor = ""; return }
                     if (!name) name = "Expense"
                     var expenses = root.cloneList(root.book.expenses)
-                    var expAcc = (root.book.accounts && root.book.accounts.length) ? root.book.accounts[0].id : "acc-checking"
+                    var expAcc = (root.book.accounts && root.book.accounts.length) ? root.book.accounts[0].id : ""
                     expenses.push({ id: F.uid(), name: name, amount: cents, frequency: "monthly", nextDate: Dates.firstOfNextMonthISO(), accountId: expAcc, enabled: true })
                     next.expenses = expenses
                   } else if (root.editor === "transfer") {
+                    if (S.atCap(root.book.transfers, S.MAX_TRANSFERS)) { root.editor = ""; return }
                     if (!name) name = "Transfer"
                     var transfers = root.cloneList(root.book.transfers)
-                    var fromId = (root.book.accounts && root.book.accounts.length) ? root.book.accounts[0].id : "acc-checking"
+                    var fromId = (root.book.accounts && root.book.accounts.length) ? root.book.accounts[0].id : ""
                     var toId = (root.book.accounts && root.book.accounts.length > 1) ? root.book.accounts[1].id : fromId
                     transfers.push({ id: F.uid(), name: name, amount: cents, frequency: "monthly", nextDate: Dates.firstOfNextMonthISO(), fromAccountId: fromId, toAccountId: toId, enabled: true })
                     next.transfers = transfers
                   }
-                  root.book = next
+                  var clean = S.parseBook(JSON.stringify(next))
+                  root.book = clean || S.emptyBook()
                   root.editor = ""
                   nameField.text = ""
                   amountField.text = ""

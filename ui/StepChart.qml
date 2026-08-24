@@ -37,7 +37,8 @@ Item {
       var minB = 0
       var maxB = 0
       var i
-      for (i = 0; i < chart.points.length; i++) {
+      var nPts = Math.min(chart.points.length, 512)
+      for (i = 0; i < nPts; i++) {
         var b = chart.points[i].balance
         if (b < minB) minB = b
         if (b > maxB) maxB = b
@@ -55,7 +56,7 @@ Item {
       }
 
       var pts = []
-      for (i = 0; i < chart.points.length; i++) {
+      for (i = 0; i < nPts; i++) {
         pts.push({ x: xOf(chart.points[i].date), y: yOf(chart.points[i].balance) })
       }
       var last = pts[pts.length - 1]
