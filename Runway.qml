@@ -242,22 +242,31 @@ Item {
           leftPadding: 20
           rightPadding: 12
 
-          Row {
+          Item {
             width: parent.width - 32
-            spacing: 8
+            height: 40
             Text {
               text: root.tab === "accounts" ? "Accounts" : (root.tab === "plan" ? "Plan" : "Forecast")
-              color: root.fg
+              color: "#f5f5f7"
               font.pixelSize: 34
               font.bold: true
+              anchors.left: parent.left
               anchors.verticalCenter: parent.verticalCenter
             }
-            Item { width: parent.width - 180; height: 1 }
             Text {
-              text: "Esc"
-              color: root.muted
-              font.pixelSize: 13
+              text: "Reset"
+              color: "#8e8e93"
+              font.pixelSize: 17
+              font.weight: Font.Medium
+              anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
+              MouseArea {
+                anchors.fill: parent
+                anchors.margins: -12
+                cursorShape: Qt.PointingHandCursor
+                hoverEnabled: true
+                onClicked: root.editor = "reset"
+              }
             }
           }
         }
@@ -644,7 +653,7 @@ Item {
 
         // Editor
         Rectangle {
-          visible: root.editor !== ""
+          visible: root.editor === "account" || root.editor === "income" || root.editor === "expense" || root.editor === "transfer"
           anchors.left: parent.left
           anchors.right: parent.right
           anchors.bottom: parent.bottom
@@ -657,7 +666,7 @@ Item {
             anchors.margins: 20
             spacing: 12
             Text {
-              text: root.editor === "account" ? "New account" : (root.editor === "income" ? "New income" : (root.editor === "expense" ? "New expense" : (root.editor === "transfer" ? "New transfer" : "Edit")))
+              text: root.editor === "account" ? "New account" : (root.editor === "income" ? "New income" : (root.editor === "expense" ? "New expense" : "New transfer"))
               color: root.fg
               font.pixelSize: 17
               font.bold: true
@@ -732,6 +741,68 @@ Item {
               color: root.muted
               font.pixelSize: 15
               MouseArea { anchors.fill: parent; onClicked: root.editor = "" }
+            }
+          }
+        }
+
+        Rectangle {
+          visible: root.editor === "reset"
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+          height: 280
+          color: "#1c1c1e"
+          radius: 24
+
+          Column {
+            anchors.fill: parent
+            anchors.margins: 24
+            spacing: 14
+            Text {
+              text: "Reset"
+              color: "#f5f5f7"
+              font.pixelSize: 17
+              font.bold: true
+            }
+            Text {
+              width: parent.width
+              wrapMode: Text.WordWrap
+              text: "This clears every account, income, expense, and transfer. Checking starts at $0."
+              color: "#8e8e93"
+              font.pixelSize: 15
+            }
+            Rectangle {
+              width: parent.width
+              height: 48
+              radius: 24
+              color: "#ff453a"
+              Text {
+                anchors.centerIn: parent
+                text: "Clear all data"
+                color: "#f5f5f7"
+                font.pixelSize: 15
+                font.bold: true
+              }
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                  root.seedEmpty()
+                  root.editor = ""
+                  nameField.text = ""
+                  amountField.text = ""
+                }
+              }
+            }
+            Text {
+              text: "Cancel"
+              color: "#8e8e93"
+              font.pixelSize: 15
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.editor = ""
+              }
             }
           }
         }

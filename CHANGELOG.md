@@ -2,6 +2,16 @@
 
 All notable changes to Runway are documented here.
 
+## [1.0.5] - 2026-08-24
+
+### Added
+
+- Reset in the top-right of the overlay. Confirms, then clears all data back to Checking at $0.
+
+### Fixed
+
+- Bar icon uses the pointing-hand (link) cursor on hover.
+
 ## [1.0.4] - 2026-08-24
 
 ### Changed

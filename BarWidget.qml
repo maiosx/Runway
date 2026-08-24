@@ -20,6 +20,11 @@ BarWidget {
       root.bar.shell.toggle("runway.forecast", "{}")
   }
 
+  HoverHandler {
+    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+    cursorShape: Qt.PointingHandCursor
+  }
+
   Item {
     anchors.centerIn: parent
     width: Math.min(root.width - Style.space(8), Style.space(22))
@@ -44,14 +49,13 @@ BarWidget {
     }
   }
 
-  MouseArea {
+  WidgetButton {
     anchors.fill: parent
-    z: 20
-    hoverEnabled: true
-    cursorShape: Qt.PointingHandCursor
-    acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-    onClicked: root.toggleRunway()
-    onEntered: if (root.bar) root.bar.showTooltip(root, "Runway")
-    onExited: if (root.bar) root.bar.hideTooltip(root)
+    bar: root.bar
+    text: ""
+    z: 10
+    onPressed: function (button) {
+      root.toggleRunway()
+    }
   }
 }
