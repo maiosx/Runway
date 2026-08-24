@@ -2,7 +2,7 @@
 
 ![Runway preview](preview.png)
 
-A checking-account forecast for Omarchy: accounts, a plan of incomes / transfers / expenses, and a green step-chart of cash from today to any date you pick.
+A money forecast app for Omarchy: accounts, a plan of incomes / transfers / expenses, and a green step-chart of cash from today to any date you pick.
 
 Click the staircase icon in the bar to open it. Escape dismisses. Data lives in `~/.config/omarchy/runway-v3.json`. Accounts start empty.
 
