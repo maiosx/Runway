@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "runway.forecast",
   "name": "Runway",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "author": "maiosx",
   "license": "MIT",
   "description": "Checking-account cash forecast for the Omarchy desktop.",

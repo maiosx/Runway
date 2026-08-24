@@ -2,6 +2,12 @@
 
 All notable changes to Runway are documented here.
 
+## [1.0.6] - 2026-08-24
+
+### Fixed
+
+- Bar icon click did nothing: WidgetButton with empty text sets `visible: false`. It now uses `keepSpace: true` so the hit target stays live, with the pointing-hand cursor on hover.
+
 ## [1.0.5] - 2026-08-24
 
 ### Added

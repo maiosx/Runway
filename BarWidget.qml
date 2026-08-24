@@ -49,10 +49,15 @@ BarWidget {
     }
   }
 
+  // keepSpace keeps the hit target visible: WidgetButton hides itself when
+  // text is empty (hasVisualContent is false).
   WidgetButton {
     anchors.fill: parent
     bar: root.bar
     text: ""
+    keepSpace: true
+    labelVisible: false
+    tooltipText: "Runway"
     z: 10
     onPressed: function (button) {
       root.toggleRunway()
