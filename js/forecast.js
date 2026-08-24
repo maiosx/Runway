@@ -186,10 +186,8 @@ function frequencyLabel(f) {
 function createEmpty() {
   return {
     currency: "USD",
-    forecastAccountId: "acc-checking",
-    accounts: [
-      { id: "acc-checking", name: "Checking", kind: "asset", balance: 0 }
-    ],
+    forecastAccountId: "all",
+    accounts: [],
     incomes: [],
     expenses: [],
     transfers: []

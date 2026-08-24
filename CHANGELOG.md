@@ -2,6 +2,12 @@
 
 All notable changes to Runway are documented here.
 
+## [1.0.7] - 2026-08-24
+
+### Changed
+
+- First launch and Reset leave Accounts completely empty. No seeded Checking $0.
+
 ## [1.0.6] - 2026-08-24
 
 ### Fixed

@@ -20,7 +20,7 @@ Item {
 
   property var book: ({
     currency: "USD",
-    forecastAccountId: "acc-checking",
+    forecastAccountId: "all",
     accounts: [],
     incomes: [],
     expenses: [],
@@ -93,7 +93,7 @@ Item {
   function loadData(raw) {
     try {
       var parsed = JSON.parse(raw)
-      if (parsed && parsed.accounts && parsed.accounts.length) {
+      if (parsed && parsed.accounts !== undefined) {
         root.book = parsed
         refreshForecast()
         rebuildLists()
@@ -187,7 +187,7 @@ Item {
 
   FileView {
     id: dataFile
-    path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/omarchy/runway-v2.json"
+    path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/omarchy/runway-v3.json"
     watchChanges: true
     onLoaded: root.loadData(text())
     onLoadFailed: root.seedEmpty()
@@ -767,7 +767,7 @@ Item {
             Text {
               width: parent.width
               wrapMode: Text.WordWrap
-              text: "This clears every account, income, expense, and transfer. Checking starts at $0."
+              text: "This clears every account, income, expense, and transfer."
               color: "#8e8e93"
               font.pixelSize: 15
             }
