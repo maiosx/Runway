@@ -2,6 +2,12 @@
 
 All notable changes to Runway are documented here.
 
+## [1.0.8] - 2026-08-24
+
+### Changed
+
+- Bar icon tooltip is now "Runway - Money Forecast".
+
 ## [1.0.7] - 2026-08-24
 
 ### Changed

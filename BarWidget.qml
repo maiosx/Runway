@@ -23,6 +23,11 @@ BarWidget {
   HoverHandler {
     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
     cursorShape: Qt.PointingHandCursor
+    onHoveredChanged: {
+      if (!root.bar) return
+      if (hovered) root.bar.showTooltip(root, "Runway - Money Forecast")
+      else root.bar.hideTooltip(root)
+    }
   }
 
   Item {
@@ -57,7 +62,7 @@ BarWidget {
     text: ""
     keepSpace: true
     labelVisible: false
-    tooltipText: "Runway"
+    tooltipText: "Runway - Money Forecast"
     z: 10
     onPressed: function (button) {
       root.toggleRunway()
