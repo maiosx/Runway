@@ -1,0 +1,8 @@
+# Editor and operating-system files
+*~
+*.swp
+.DS_Store
+
+# Local build/debug output
+*.log
+*.bak

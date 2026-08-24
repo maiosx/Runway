@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Install the Super + R binding that summons Runway.
+set -euo pipefail
+
+conf_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
+mkdir -p "$conf_dir"
+snippet="$conf_dir/runway.conf"
+
+cat > "$snippet" <<'EOF'
+# Runway — Super + R
+bindd = SUPER, R, Toggle Runway, exec, omarchy-shell shell toggle runway.forecast
+EOF
+
+sourced=0
+for f in "$conf_dir/hyprland.conf" "$conf_dir/bindings.conf"; do
+  if [ -f "$f" ]; then
+    if grep -q "runway.conf" "$f"; then
+      sourced=1
+    else
+      printf '\nsource = %s\n' "$snippet" >> "$f"
+      sourced=1
+      echo "Sourced $snippet from $f"
+    fi
+  fi
+done
+
+if [ "$sourced" -eq 0 ]; then
+  echo "Wrote $snippet — add this line to hyprland.conf:"
+  echo "  source = $snippet"
+fi
+
+hyprctl reload >/dev/null 2>&1 || true
+echo "Super + R now toggles Runway (omarchy-shell shell toggle runway.forecast)."
